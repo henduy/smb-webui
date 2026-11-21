@@ -1,0 +1,16 @@
+[Unit]
+Description=Samba Configuration Manager (Web UI)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/smb-webui
+EnvironmentFile=-/etc/smb-webui.env
+ExecStart=/opt/smb-webui/.venv/bin/python /opt/smb-webui/smb-webui.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

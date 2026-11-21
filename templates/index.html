@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Samba Configuration Manager</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="6" rx="2" />
+          <rect x="3" y="14" width="18" height="6" rx="2" />
+          <circle cx="7" cy="7" r="1" fill="currentColor" stroke="none" />
+          <circle cx="7" cy="17" r="1" fill="currentColor" stroke="none" />
+          <path d="M11 7h6M11 17h6" />
+        </svg>
+      </span>
+      <div>
+        <h1 data-i18n="app.title">Samba Configuration Manager</h1>
+        <p id="configPath" class="subtitle">Konfiguration wird geladen …</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <select id="languageSelect" class="lang-select" aria-label="Language">
+        <option value="de">Deutsch</option>
+        <option value="en">English</option>
+        <option value="nl">Nederlands</option>
+      </select>
+      <span id="dirtyBadge" class="badge badge-idle" hidden data-i18n="dirty">• ungespeicherte Änderungen</span>
+      <span id="rootBadge" class="badge badge-idle" hidden data-i18n="rootNeeded">Root-Passwort nötig</span>
+      <button id="btnReloadTop" class="btn btn-ghost" type="button" data-i18n="reload">Neu laden</button>
+      <button id="btnSaveTop" class="btn btn-primary" type="button" data-i18n="saveConfig">Konfiguration speichern</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2 data-i18n="sections">Konfigurationsbereiche</h2>
+        <span id="sectionCount" class="muted"></span>
+      </div>
+      <ul id="sectionList" class="section-list"></ul>
+      <div class="sidebar-actions">
+        <button id="btnAddShare" class="btn btn-primary btn-block" type="button" data-i18n="share.new">+ Neue Freigabe</button>
+        <button id="btnEditShare" class="btn btn-block" type="button" data-i18n="share.edit">Freigabe bearbeiten</button>
+        <button id="btnDeleteShare" class="btn btn-danger btn-block" type="button" data-i18n="share.delete">Freigabe löschen</button>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div class="content-head">
+        <div>
+          <h2 id="sectionTitle">Bitte Bereich auswählen</h2>
+          <p id="sectionMeta" class="muted"></p>
+        </div>
+        <button id="btnAddOption" class="btn btn-primary" type="button" data-i18n="option.new">+ Parameter</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="options-table">
+          <thead>
+            <tr>
+              <th data-i18n="table.parameter">Parameter</th>
+              <th data-i18n="table.value">Wert</th>
+              <th class="col-actions" data-i18n="table.actions">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="optionsBody"></tbody>
+        </table>
+        <p id="emptyHint" class="empty-hint" hidden data-i18n="table.empty">Für diesen Bereich sind keine Parameter definiert.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="footerInfo" class="muted">Konfigurationsdatei: –</span>
+    <span id="testparmInfo" class="muted"></span>
+  </footer>
+
+  <!-- Freigabe-Dialog -->
+  <div id="shareModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="shareModal"></div>
+    <div class="modal-dialog modal-wide" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+      <form id="shareForm" novalidate>
+        <div class="modal-head">
+          <h2 id="shareModalTitle">Neue Freigabe</h2>
+          <button type="button" class="icon-btn" data-close="shareModal" aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal-body form-grid">
+          <label class="field">
+            <span><span data-i18n="field.name">Name</span> <em>*</em></span>
+            <input id="shareName" type="text" data-i18n-placeholder="ph.shareName" placeholder="z. B. freigabe" autocomplete="off">
+          </label>
+          <label class="field">
+            <span data-i18n="field.comment">Kommentar</span>
+            <input id="shareComment" type="text">
+          </label>
+          <label class="field field-full">
+            <span><span data-i18n="field.path">Pfad</span> <em>*</em></span>
+            <span class="input-group">
+              <input id="sharePath" type="text" placeholder="/srv/freigabe" autocomplete="off">
+              <button id="btnBrowse" class="btn" type="button" data-i18n="browse">Durchsuchen…</button>
+            </span>
+          </label>
+          <label class="field">
+            <span data-i18n="field.access">Zugriff</span>
+            <select id="shareAccess">
+              <option value="no" data-i18n="access.rw">Lesen und Schreiben</option>
+              <option value="yes" data-i18n="access.ro">Nur Lesen</option>
+            </select>
+          </label>
+          <label class="field">
+            <span data-i18n="field.users">Berechtigte Benutzer</span>
+            <input id="shareUsers" type="text" placeholder="z. B. alice,bob">
+          </label>
+          <label class="field">
+            <span>force user</span>
+            <input id="shareForceUser" type="text">
+          </label>
+          <label class="field">
+            <span>force group</span>
+            <input id="shareForceGroup" type="text">
+          </label>
+          <div class="field field-full checkbox-row">
+            <label class="check"><input id="shareGuest" type="checkbox"> <span data-i18n="field.guest">Gastzugriff erlauben</span></label>
+            <label class="check"><input id="shareBrowseable" type="checkbox" checked> <span data-i18n="field.browseable">Im Netzwerk sichtbar</span></label>
+          </div>
+          <div class="field field-full mask-row">
+            <label class="field">
+              <span data-i18n="field.createMask">Rechte-Maske Dateien</span>
+              <input id="shareCreateMask" type="text" value="0775">
+            </label>
+            <label class="field">
+              <span data-i18n="field.dirMask">Rechte-Maske Ordner</span>
+              <input id="shareDirMask" type="text" value="0775">
+            </label>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close="shareModal" data-i18n="cancel">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" id="shareSubmit" data-i18n="save">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Parameter-Dialog -->
+  <div id="optionModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="optionModal"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="optionModalTitle">
+      <form id="optionForm" novalidate>
+        <div class="modal-head">
+          <h2 id="optionModalTitle">Parameter hinzufügen</h2>
+          <button type="button" class="icon-btn" data-close="optionModal" aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal-body form-grid">
+          <label class="field field-full">
+            <span><span data-i18n="field.optionName">Parametername</span> <em>*</em></span>
+            <input id="optionKey" type="text" autocomplete="off" data-i18n-placeholder="ph.optionName" placeholder="z. B. read only">
+          </label>
+          <label class="field field-full">
+            <span data-i18n="table.value">Wert</span>
+            <input id="optionValue" type="text" autocomplete="off">
+            <small data-i18n="option.hint">Leer lassen, um einen Parameter ohne Wert zu setzen.</small>
+          </label>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close="optionModal" data-i18n="cancel">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" data-i18n="save">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Root-Passwort -->
+  <div id="passwordModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="passwordModal"></div>
+    <div class="modal-dialog modal-small" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+      <form id="passwordForm" novalidate>
+        <div class="modal-head">
+          <h2 id="passwordModalTitle" data-i18n="password.title">Root-Passwort erforderlich</h2>
+          <button type="button" class="icon-btn" data-close="passwordModal" aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="muted" data-i18n-html="password.description">
+            Nur der Schreibvorgang läuft mit Root-Rechten. Das Passwort wird
+            ausschließlich an <code>sudo</code> übergeben, nicht gespeichert
+            und nicht protokolliert.
+          </p>
+          <label class="field">
+            <span><span data-i18n="password.field">Root-Passwort</span> <em>*</em></span>
+            <input id="rootPassword" type="password" autocomplete="current-password">
+          </label>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close="passwordModal" data-i18n="cancel">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" data-i18n="save">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Verzeichnisauswahl -->
+  <div id="browseModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="browseModal"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="browseModalTitle">
+      <div class="modal-head">
+        <h2 id="browseModalTitle" data-i18n="browse.title">Verzeichnis wählen</h2>
+        <button type="button" class="icon-btn" data-close="browseModal" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <input id="browsePath" type="text" spellcheck="false">
+          <button id="browseGo" class="btn" type="button" data-i18n="browse.go">Los</button>
+        </div>
+        <ul id="browseList" class="browse-list"></ul>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close="browseModal" data-i18n="cancel">Abbrechen</button>
+        <button id="browseSelect" class="btn btn-primary" type="button" data-i18n="browse.select">Auswählen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bestätigungsdialog -->
+  <div id="confirmModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="confirmModal"></div>
+    <div class="modal-dialog modal-small" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="modal-head">
+        <h2 id="confirmTitle" data-i18n="confirm.title">Bestätigen</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage"></p>
+      </div>
+      <div class="modal-foot">
+        <button id="confirmCancel" type="button" class="btn" data-i18n="cancel">Abbrechen</button>
+        <button id="confirmOk" type="button" class="btn btn-danger" data-i18n="confirm.ok">Bestätigen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
