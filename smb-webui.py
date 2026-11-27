@@ -260,8 +260,8 @@ def state_payload() -> dict:
     }
 
 
-def with_message(payload: dict, key: str, **params: object) -> dict:
-    payload["messageKey"] = key
+def with_message(payload: dict, message_key: str, **params: object) -> dict:
+    payload["messageKey"] = message_key
     payload["params"] = params
     return payload
 
